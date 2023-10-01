@@ -1,0 +1,39 @@
+import tensorflow as tf
+from tensorflow import keras
+(x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
+x_train, x_test = x_train / 255.0, x_test / 255.0
+y_train = keras.utils.to_categorical(y_train, num_classes=10)
+y_test = keras.utils.to_categorical(y_test, num_classes=10)
+class CustomDenseLayer(keras.layers.Layer):
+    def __init__(self, units, activation=None):
+        super(CustomDenseLayer, self).__init__()
+        self.units = units
+        self.activation = keras.activations.get(activation)
+    
+    def build(self, input_shape):
+        self.w = self.add_weight(shape=(input_shape[-1], self.units),
+                                 initializer='random_normal')
+        self.b = self.add_weight(shape=(self.units,),
+                                 initializer='zeros')
+    
+    def call(self, inputs):
+        return self.activation(tf.matmul(inputs, self.w) + self.b)
+model = keras.Sequential([
+    keras.layers.Flatten(input_shape=(28, 28)),
+    CustomDenseLayer(128, activation='relu'),
+    keras.layers.Dropout(0.2),
+    CustomDenseLayer(10, activation='softmax')
+])
+def custom_sparse_categorical_crossentropy(y_true, y_pred):
+    log_probs = -tf.math.log(tf.gather(y_pred, y_true, axis=1))
+    return tf.reduce_mean(log_probs)
+def custom_sparse_categorical_crossentropy(y_true, y_pred):
+    y_true = tf.argmax(y_true, axis=1)  # Convert one-hot encoded labels to integer labels
+    log_probs = -tf.math.log(tf.gather(y_pred, y_true, axis=1))
+    return tf.reduce_mean(log_probs)
+model.compile(optimizer='adam',
+              loss=custom_sparse_categorical_crossentropy,
+              metrics=[custom_accuracy])
+model.fit(x_train, y_train, epochs=5, batch_size=32)
+test_loss, test_acc = model.evaluate(x_test, y_test, verbose=2)
+print(f'Test accuracy: {test_acc}')
