@@ -1,0 +1,42 @@
+from sklearn.datasets import load_iris
+import numpy as np
+# Load dataset
+iris = load_iris()
+X, y = iris.data, iris.target
+# Convert to binary classification problem
+y_binary = np.where(y == 0, 1, 0)
+from sklearn.model_selection import train_test_split
+
+# Split dataset
+X_train, X_test, y_train, y_test = train_test_split(X, y_binary, test_size=0.2, random_state=42)
+def logistic_loss(y, y_pred):
+    return -np.mean(y * np.log(y_pred) + (1 - y) * np.log(1 - y_pred))
+def train(X, y, learning_rate, num_iterations, regularization_param):
+    m, n = X.shape
+    W = np.zeros(n)
+    b = 0
+
+    for i in range(num_iterations):
+        linear_model = np.dot(X, W) + b
+        y_pred = 1 / (1 + np.exp(-linear_model))
+        gradient_w = (1/m) * np.dot(X.T, (y_pred - y)) + regularization_param * W
+        gradient_b = (1/m) * np.sum(y_pred - y)
+        W -= learning_rate * gradient_w
+        b -= learning_rate * gradient_b
+
+    return W, b
+# Train the model
+W, b = train(X_train, y_train, learning_rate=0.01, num_iterations=1000, regularization_param=0.1)
+def predict(X, W, b):
+    linear_model = np.dot(X, W) + b
+    y_pred_proba = 1 / (1 + np.exp(-linear_model))
+    y_pred = np.where(y_pred_proba >= 0.5, 1, 0)
+    return y_pred
+# Predict on the test set
+y_pred = predict(X_test, W, b)
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+
+# Evaluate the model
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
+print("Classification Report:\n", classification_report(y_test, y_pred))
