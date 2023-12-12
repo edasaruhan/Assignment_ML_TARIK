@@ -1,0 +1,243 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.metrics import mean_squared_error, r2_score
+
+def preprocess_data(file_path):
+    # Load dataset
+    data = pd.read_excel(file_path)
+
+    # Convert 'dt' to datetime and extract year, month, and day
+    data['dt'] = pd.to_datetime(data['dt'])
+    data['Year'] = data['dt'].dt.year
+    data['Month'] = data['dt'].dt.month
+    data['Day'] = data['dt'].dt.day
+
+    # Fill missing values
+    data['AverageTemperature'] = data['AverageTemperature'].fillna(data['AverageTemperature'].mean())
+
+    # Drop unnecessary columns
+    columns_to_drop = ['dt', 'AverageTemperatureUncertainty', 'City', 'Country', 'Latitude', 'Longitude']
+    data = data.drop(columns=columns_to_drop)
+
+    return data
+
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.model_selection import train_test_split
+
+def train_and_evaluate_models(data):
+    # Splitting data into features and target
+    X = data.drop('AverageTemperature', axis=1)
+    y = data['AverageTemperature']
+
+    # Splitting data into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Initializing models
+    models = {
+        'Linear Regression': LinearRegression(),
+        'Decision Tree': DecisionTreeRegressor(random_state=42),
+        'Random Forest': RandomForestRegressor(random_state=42),
+        'Gradient Boosting': GradientBoostingRegressor(random_state=42)
+    }
+
+    # Training and evaluating models
+    results = {}
+    for name, model in models.items():
+        model.fit(X_train, y_train)
+        predictions = model.predict(X_test)
+        
+        # Calculate performance metrics
+        mse = mean_squared_error(y_test, predictions)
+        rmse = mean_squared_error(y_test, predictions, squared=False)
+        mae = mean_absolute_error(y_test, predictions)
+        r2 = r2_score(y_test, predictions)
+        
+        # Nash-Sutcliffe Efficiency (NSE)
+        nse = 1 - sum((predictions - y_test)**2) / sum((y_test - y_test.mean())**2)
+        
+        
+        
+        # Storing the results
+        results[name] = {
+            'MSE': mse, 
+            'RMSE': rmse, 
+            'MAE': mae, 
+            'R2 Score': r2,
+            'NSE': nse
+        }
+
+    return results
+
+# Load and preprocess the data
+bahir_dar_data = preprocess_data("C:\\Users\\TARIK\\Documents\\Bahir Dar.xlsx")
+awasa_data = preprocess_data("C:\\Users\\TARIK\\Documents\\AWASA.xlsx")
+
+# Train and evaluate models for Bahir Dar
+results_bahir_dar = train_and_evaluate_models(bahir_dar_data)
+
+# Train and evaluate models for Awasa
+results_awasa = train_and_evaluate_models(awasa_data)
+
+# Print results
+print("Bahir Dar Results:", results_bahir_dar)
+print("Awasa Results:", results_awasa)
+
+------------------------------------------------------------------------------------------------------------------------------------------
+
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
+from scipy.stats import pearsonr
+
+# Load and preprocess the data
+def preprocess_data(file_path):
+    data = pd.read_excel(file_path)
+    data['dt'] = pd.to_datetime(data['dt'])
+    data['Year'] = data['dt'].dt.year
+    data['Month'] = data['dt'].dt.month
+    data['Day'] = data['dt'].dt.day
+    data['AverageTemperature'] = data['AverageTemperature'].fillna(data['AverageTemperature'].mean())
+    data = data.drop(columns=['dt', 'AverageTemperatureUncertainty', 'City', 'Country', 'Latitude', 'Longitude'])
+    return data
+
+# Preprocess the data for both cities
+data_awasa = preprocess_data("C:\\Users\\TARIK\\Documents\\AWASA.xlsx")
+data_bahir_dar = preprocess_data("C:\\Users\\TARIK\\Documents\\Bahir Dar.xlsx")
+
+# Split the data into features and targets
+def get_features_targets(data):
+    X = data[['Year', 'Month', 'Day']]
+    y = data['AverageTemperature']
+    return X, y
+
+X_awasa, y_awasa = get_features_targets(data_awasa)
+X_bahir_dar, y_bahir_dar = get_features_targets(data_bahir_dar)
+
+# Split the data into training and testing sets
+X_awasa_train, X_awasa_test, y_awasa_train, y_awasa_test = train_test_split(X_awasa, y_awasa, test_size=0.2, random_state=42)
+X_bahir_dar_train, X_bahir_dar_test, y_bahir_dar_train, y_bahir_dar_test = train_test_split(X_bahir_dar, y_bahir_dar, test_size=0.2, random_state=42)
+
+# Initialize the models
+models = {
+    'Linear Regression': LinearRegression(),
+    'Decision Tree': DecisionTreeRegressor(random_state=42),
+    'Random Forest': RandomForestRegressor(random_state=42),
+    'Gradient Boosting': GradientBoostingRegressor(random_state=42)
+}
+
+# Train the models and collect the predictions for Bahir Dar
+def train_models_get_predictions(X_train, y_train, X_test, models):
+    predictions = {}
+    for name, model in models.items():
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        predictions[name] = y_pred
+    return predictions
+
+# Since we're focusing on plotting, we'll directly use the Bahir Dar data
+predictions_bahir_dar = train_models_get_predictions(X_bahir_dar_train, y_bahir_dar_train, X_bahir_dar_test, models)
+
+# Now let's plot the observed vs predicted values including the R value
+def plot_predictions_with_r_value(y_test, predictions, title):
+    plt.figure(figsize=(12, 8))
+    
+    for name, y_pred in predictions.items():
+        # Calculate the Pearson R value
+        r_value = pearsonr(y_test, y_pred)[0]
+        plt.scatter(y_test, y_pred, label=f'{name} (R={r_value:.2f})')
+    
+    # Plot the line of perfect prediction
+    perfect_line = np.linspace(min(y_test), max(y_test), len(y_test))
+    plt.plot(perfect_line, perfect_line, 'k--', label='Perfect Prediction')
+    
+    # Add labels and legend
+    plt.xlabel('Observed Temperature')
+    plt.ylabel('Predicted Temperature')
+    plt.title(title)
+    plt.legend()
+    plt.show()
+
+# Plotting for Bahir Dar with R value
+plot_predictions_with_r_value(y_bahir_dar_test, predictions_bahir_dar, 'Bahir Dar: Observed vs Predicted Temperature')
+# Now let's process and plot the observed vs predicted values including the R value for Awasa
+# We will use the same models trained earlier but predict for the Awasa dataset this time
+
+# Get predictions for Awasa using the models trained on the Bahir Dar data
+predictions_awasa = train_models_get_predictions(X_awasa_train, y_awasa_train, X_awasa_test, models)
+
+# Plotting for Awasa with R value
+plot_predictions_with_r_value(y_awasa_test, predictions_awasa, 'Awasa: Observed vs Predicted Temperature')
+
+========================================================================================================================================
+
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+import numpy as np
+
+# Load and preprocess the data
+# (You can use the preprocess_data function you provided)
+
+# Load and preprocess the data for Awasa and Bahir Dar
+awasa_data = preprocess_data("C:\\Users\\TARIK\\Documents\\AWASA.xlsx")
+bahir_dar_data = preprocess_data("C:\\Users\\TARIK\\Documents\\Bahir Dar.xlsx")
+
+# Create a function to predict future temperatures using a given ML model and method name
+def predict_future_temperatures(data, city_name, years_to_predict, model_name, model):
+    X = data[['Year']]
+    y = data['AverageTemperature']
+
+    # Create a regression model and fit it to the data
+    model.fit(X, y)
+    
+    # Predict temperatures for the next 20 years
+    future_years = np.arange(data['Year'].max() + 1, data['Year'].max() + years_to_predict + 1)
+    future_data = pd.DataFrame({'Year': future_years})
+    future_temperatures = model.predict(future_data)
+
+    # Create a DataFrame to store the results
+    future_df = pd.DataFrame({'Year': future_years, 'AverageTemperature': future_temperatures})
+    future_df['City'] = city_name
+    future_df['ML Method'] = model_name
+
+    return future_df
+
+# Initialize ML models
+models = {
+    'Linear Regression': LinearRegression(),
+    'Decision Tree': DecisionTreeRegressor(),
+    'Random Forest': RandomForestRegressor(),
+    'Gradient Boosting': GradientBoostingRegressor()
+}
+
+# Create a function to predict temperatures using all ML models
+def predict_temperatures_with_all_models(data, city_name, years_to_predict):
+    all_predictions = pd.DataFrame({'Year': [], 'AverageTemperature': [], 'City': [], 'ML Method': []})
+
+    for model_name, model in models.items():
+        predictions = predict_future_temperatures(data, city_name, years_to_predict, model_name, model)
+        all_predictions = pd.concat([all_predictions, predictions], ignore_index=True)
+    
+    return all_predictions
+
+# Predict temperatures for Awasa for the next 20 years using all ML models
+awasa_predictions = predict_temperatures_with_all_models(awasa_data, 'Awasa', 20)
+
+# Predict temperatures for Bahir Dar for the next 20 years using all ML models
+bahir_dar_predictions = predict_temperatures_with_all_models(bahir_dar_data, 'Bahir Dar', 20)
+
+# Combine the predictions for both cities
+all_predictions = pd.concat([awasa_predictions, bahir_dar_predictions], ignore_index=True)
+
+# Display all the results
+print(all_predictions)
+
+# Save the results to an Excel file
+all_predictions.to_excel("temperature_predictions.xlsx", index=False)
